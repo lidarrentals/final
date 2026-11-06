@@ -1,0 +1,17 @@
+{
+  "short_name": "lidar.rentals",
+  "name": "lidar.rentals — LiDAR Equipment & Scanning Services",
+  "description": "LiDAR equipment rentals and professional onsite drone scanning services with real-time availability.",
+  "start_url": "/",
+  "background_color": "#07111e",
+  "theme_color": "#0f172a",
+  "display": "standalone",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192"
+    }
+  ]
+}
