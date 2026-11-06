@@ -196,7 +196,7 @@ export default function HomePage() {
               <div className="flex-1 bg-white/10 backdrop-blur rounded-2xl p-6 border border-white/10">
                 <ShieldCheck className="w-8 h-8 text-blue-400 mb-3" />
                 <h3 className="text-white font-semibold mb-1">Building Envelope</h3>
-                <p className="text-sm text-slate-400">Thermal imaging, moisture detection</p>
+                <p className="text-sm text-slate-400">Post Processing/Georeferencing</p>
               </div>
             </div>
           </div>
