@@ -22,7 +22,7 @@ export default function ServiceCard({ service }: { service: Service }) {
 
         try {
             // 1. Save data payload to your Supabase table
-            const { error: dbError } = await supabase
+            const { error } = await supabase
                 .from('leads')
                 .insert([
                     {
@@ -38,33 +38,14 @@ export default function ServiceCard({ service }: { service: Service }) {
                     }
                 ]);
 
-            if (dbError) throw dbError;
+            if (error) throw error;
 
-            // 2. Request magic link authentication mapping directly to your localhost structure
-            const { error: authError } = await supabase.auth.signInWithOtp({
-                email: formData.email,
-                options: {
-                    data: {
-                        full_name: formData.fullName,
-                        company_name: formData.companyName,
-                    },
-                    redirectTo: 'http://localhost:3000/#/knowledge-base',
-                },
-            });
+            // 2. Open Calendly in a brand new browser tab or window
+            window.open('https://calendly.com/lidar-rentals', '_blank');
 
-            if (authError) {
-                console.error('Account creation error:', authError.message);
-            }
-
-            // 3. Open your specific Calendly path in a new browser tab
-            window.open('https://calendly.com', '_blank');
-
-            // 4. Reset component UI state
+            // 3. Close the modal on your main page and reset submitting state
             setIsOpen(false);
             setIsSubmitting(false);
-
-            alert(`Lead saved! Check your email (${formData.email}) for your secure access link to the knowledge base.`);
-
         } catch (error) {
             console.error('Error saving data:', error);
             alert('Something went wrong. Please try again.');
@@ -74,20 +55,21 @@ export default function ServiceCard({ service }: { service: Service }) {
 
     return (
         <>
-        <div className= "group text-left bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl hover:border-blue-200 transition-all duration-300 flex flex-col h-full" >
-        <div className="relative aspect-[16/10] overflow-hidden bg-slate-100" >
-            {
-                service.image_url ? (
-                    <img
+        {/* Service Card UI */ }
+        < div className = "group text-left bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl hover:border-blue-200 transition-all duration-300 flex flex-col h-full" >
+            <div className="relative aspect-[16/10] overflow-hidden bg-slate-100" >
+                {
+                    service.image_url ? (
+                        <img
               src= { service.image_url }
               alt={ service.name }
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
+                    />
           ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-300" >
-                <span className="text-4xl" >📐</span>
-                </div>
-                )
+                        <div className="w-full h-full flex items-center justify-center text-slate-300" >
+                    <span className="text-4xl" >📐</span>
+                    </div>
+                    )
 }
 <span className="absolute top-3 left-3 px-2.5 py-1 bg-slate-900/80 backdrop-blur text-white text-xs font-semibold rounded-full" >
     Onsite Service
@@ -114,6 +96,7 @@ className = "mt-6 w-full flex items-center justify-center gap-2 px-4 py-3 bg-blu
             </div>
             </div>
 
+{/* Pop-up Window Form Overlay */ }
 {
     isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" >
