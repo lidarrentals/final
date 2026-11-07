@@ -48,9 +48,9 @@ export default function ServicesPage() {
               Onsite 3D Scanning & Post Processing Services
             </h1>
             <p className="mt-5 text-lg text-slate-300 leading-relaxed">
-              Professional LiDAR scanning, building envelope analysis, and precision measurement
-              services delivered on-site by certified technicians. Book by the day or week with
-              real-time availability. Post-Processing, Georferencing, Non-Static Point and noise removal, File conversions, volumetric calculations, and More...
+              Professional 3D LiDAR scanning and mapping using the latest 3D SLAM Scanners and Autonomous drones to map GPS Denied environments that are beyoned visual and ALL Communications including radio and wifi!
+              services delivered on-site by Experienced and safetycertified technicians ONLY!SWchedule a consultation to discuss further. We also offer rental equipment with a complete knowledge base with step by step manuals! Book by the day or week with
+              Check real-time availability and book online with a credit card (some terms and conditions apply). We also offer Post-Processing, Georferencing, Non-Static Point and noise removal, File conversions, volumetric calculations, and More...
             </p>
             <div className="mt-6 flex flex-wrap gap-4">
               <div className="flex items-center gap-2 text-sm text-slate-300">
