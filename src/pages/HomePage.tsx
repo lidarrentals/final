@@ -52,9 +52,9 @@ export default function HomePage() {
               LiDAR-ready equipment for every job
             </h1>
             <p className="mt-6 text-lg text-slate-300 leading-relaxed max-w-xl">
-              Autonomous LiDAR drone rentals for GPS Denied environoments, 3D SLAM Mobile Lidar scanners and accessories. 
+              Autonomous LiDAR drone rentals and onsite scanning services for GPS Denied environoments, 3D SLAM Mobile Lidar scanners and accessories. 
               
-              lidar.rentals offers flexible rental periods with real-time availability and a seamless checkout. Plus, professional onsite 3D scanning services and emergency services.
+              lidar.rentals offers flexible rental periods with real-time availability and a seamless checkout. Plus, professional onsite 3D scanning services and emergency services availible.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-4">
               <button
@@ -66,8 +66,8 @@ export default function HomePage() {
               </button>
               <button
                 onClick={() => navigate('/services')}
-                className="px-6 py-3.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
-              >
+className = "px-6 py-3.5 bg-blue-600 hover:bg-blue-500 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 group"
+    >
                 <ScanLine className="w-5 h-5" />
                 Onsite Scanning Services
               </button>
