@@ -126,15 +126,16 @@ export default function ServicesPage() {
           <p className="text-blue-100 mb-6 max-w-xl mx-auto">
             For emergency services, please use livechat or call (416)220-2456 and we will respond within 4 hours.
           </p>
-          <button
-            onClick={() => {
-              const el = document.querySelector('[data-services-grid]');
-              el?.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className="px-6 py-3.5 bg-white text-blue-600 rounded-xl font-semibold hover:bg-blue-50 transition-colors"
-          >
-            View Services & Book
-          </button>
+    < button
+onClick = {() => {
+    window.dispatchEvent(new CustomEvent('open-consultation'));
+}}
+className = "px-6 py-3.5 bg-white text-blue-600 rounded-xl font-semibold hover:bg-blue-50 transition-colors"
+    >
+    View Services & Book
+        </button>
+
+
         </div>
       </section>
     </div>
