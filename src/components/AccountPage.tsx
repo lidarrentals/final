@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { FileText, Loader2, Lock, Building2, MapPin, UserCheck } from 'lucide-react';
+import { BookOpen, FileText, Loader2, Lock, Building2, MapPin, UserCheck } from 'lucide-react';
 
 export default function AccountPage() {
     const [user, setUser] = useState<any>(null);
@@ -50,9 +50,15 @@ export default function AccountPage() {
         e.preventDefault();
         setLoading(true);
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) alert(error.message);
-        else setUser(data.user);
+        if (error) {
+            alert(error.message);
+            setLoading(false);
+            return;
+        }
+        setUser(data.user);
         setLoading(false);
+        // Take customers straight to the members-only Knowledge Base after signing in
+        window.location.hash = '/knowledge-base';
     };
 
     const handleSignUp = async (e: React.FormEvent) => {
@@ -149,6 +155,16 @@ export default function AccountPage() {
         < div >
         <h2 className="text-lg font-bold mb-4 flex items-center gap-2" > <FileText /> Portal Management</h2 >
             <p className="text-slate-500 text-sm bg-slate-50 p-6 rounded-xl border border-dashed border-slate-200 text-center" > Your company account profile information has been successfully linked.</p>
+                <a href="#/knowledge-base" className="mt-4 flex items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 hover:border-blue-300 transition">
+                    <span className="flex items-center gap-3">
+                        <BookOpen className="text-blue-600 w-5 h-5" />
+                        <span>
+                            <span className="block font-semibold text-slate-900">Knowledge Base</span>
+                            <span className="block text-sm text-slate-500">Nexys flight procedures, post-processing guides and support.</span>
+                        </span>
+                    </span>
+                    <span className="text-sm font-medium text-blue-600">Open &rarr;</span>
+                </a>
                 </div>
                 </div>
       )}
