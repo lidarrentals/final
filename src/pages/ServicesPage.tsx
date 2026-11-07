@@ -48,9 +48,11 @@ export default function ServicesPage() {
               Onsite 3D Scanning & Post Processing Services
             </h1>
             <p className="mt-5 text-lg text-slate-300 leading-relaxed">
-              Professional 3D LiDAR scanning and mapping using the latest 3D SLAM Scanners and Autonomous drones to map GPS Denied environments that are beyoned visual and ALL Communications including radio and wifi!
-              services delivered on-site by Experienced and safetycertified technicians ONLY!SWchedule a consultation to discuss further. We also offer rental equipment with a complete knowledge base with step by step manuals! Book by the day or week with
-              Check real-time availability and book online with a credit card (some terms and conditions apply). We also offer Post-Processing, Georferencing, Non-Static Point and noise removal, File conversions, volumetric calculations, and More...
+        Our experienced, field technicians deploy directly to your site to execute specialized data acquisition workflows using state-of-the-art autonomous drones and handheld 3D SLAM scanners. 
+        
+        We navigate hazardous mining and subterranean networks, complex industrial infrastructures and beneath dense tree canopies!
+          
+         
             </p>
             <div className="mt-6 flex flex-wrap gap-4">
               <div className="flex items-center gap-2 text-sm text-slate-300">
@@ -63,7 +65,15 @@ export default function ServicesPage() {
               </div>
               <div className="flex items-center gap-2 text-sm text-slate-300">
                 <Check className="w-4 h-4 text-green-400" />
-                Fast turnaround
+        24 hour emergency services.
+        </div>
+        < div className = "flex items-center gap-2 text-sm text-slate-300" >
+            <Check className="w-4 h-4 text-green-400" />
+              post - processing services.
+            </div>
+        < div className = "flex items-center gap-2 text-sm text-slate-300" >
+            <Check className="w-4 h-4 text-green-400" />
+                Full Liability Insurance and WSIB coverage.
               </div>
             </div>
           </div>
