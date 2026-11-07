@@ -18,7 +18,7 @@ export default function ServicesPage() {
 
   const process = [
     { step: '01', title: 'Book a Free Online Consulation', desc: 'Choose your availablily and book a time directly on the calendar.' },
-      { step: '02', title: 'We Come to You', desc: 'Our certified technicians arrive on-site with all equipment. High-precision LiDAR and 3D scanning of your site or assets.' },
+      { step: '02', title: 'We Come to You', desc: 'Our certified technicians arrive on-site with all equipment. High-precision 3D LiDAR, surveying equipment and autonomous drones.' },
       { step: '03', title: 'Scan & Capture', desc: 'We will complete the Statement Of Work within the time - frame or until the job is completed(some exceptions apply)' },
     { step: '04', title: 'Receive Deliverables', desc: 'Get Fully Georeferenced point clouds, 3D  Solid models, Survey Accuracy reports, custom analytics available all.' },
   ];
