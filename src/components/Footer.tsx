@@ -49,10 +49,6 @@ export default function Footer() {
                                         </div>
                                         </div>
 
-    {/* NOTICEABLE LIVE VERIFICATION TEST BANNER */ }
-    <div className="mt-8 bg-blue-600 text-white font-bold p-3 rounded-lg text-center tracking-wide uppercase text-xs animate-pulse" >
-          ⚡ GitHub to Vercel Pipeline Sync Connection Test Active ⚡
-    </div>
 
         < div className = "border-t border-slate-800 mt-6 pt-6 text-center text-sm text-slate-500" >
           © { new Date().getFullYear() } lidar.rentals.All rights reserved.
