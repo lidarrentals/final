@@ -121,10 +121,10 @@ export default function ServicesPage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-blue-600 rounded-3xl p-8 md:p-12 text-center">
           <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
-            Ready to book your scanning service?
+            Ready to book your scanning service? Click below to book a meeting.
           </h2>
           <p className="text-blue-100 mb-6 max-w-xl mx-auto">
-            Check availability and reserve your dates instantly. Our team will confirm within 24 hours.
+            For emergency services, please use livechat or call (416)220-2456 and we will respond within 4 hours.
           </p>
           <button
             onClick={() => {
