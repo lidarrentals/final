@@ -1,9 +1,18 @@
-import React from 'react';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 import { User, ShoppingCart } from 'lucide-react';
 
 export default function Header() {
-    // Mock authentication state - change to your actual auth check variable if different
-    const user = null;
+    // Track the signed-in Supabase user so members-only links appear after login
+    const [user, setUser] = useState<any>(null);
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null));
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUser(session?.user ?? null);
+        });
+        return () => subscription.unsubscribe();
+    }, []);
 
     const handleNav = (path: string, mode?: string) => {
         if (mode) {
@@ -37,6 +46,9 @@ export default function Header() {
             < a href = "#/about" className = "text-sm font-medium text-slate-300 hover:text-white transition" > About </a>
                 < a href = "#/downloads" className = "text-sm font-medium text-slate-300 hover:text-white transition" > Downloads </a>
                     < a href = "#/reviews" className = "text-sm font-medium text-slate-300 hover:text-white transition" > Reviews </a>
+                        {user && (
+                            <a href="#/knowledge-base" className="text-sm font-medium text-slate-300 hover:text-white transition">Knowledge Base</a>
+                        )}
                         </nav>
 
 {/* Action Actions / Authentication Buttons */ }

@@ -56,7 +56,7 @@ export default function CheckoutPage() {
             <div className= "max-w-2xl mx-auto px-4 py-16 text-center" >
             <CheckCircle2 className="w-16 h-16 text-green-600 mx-auto mb-6" />
                 <h2 className="text-3xl font-bold text-slate-900" > Order Received! </h2>
-                    < p className = "text-xl text-slate-600 mt-3" > Order Reference: <strong className="text-blue-600 font-mono" > { orderId } < /strong></p >
+                    < p className = "text-xl text-slate-600 mt-3" > Order Reference: <strong className="text-blue-600 font-mono" > { orderId }</strong></p>
                         <div className="my-6 p-4 bg-slate-50 rounded-xl border border-slate-200 text-left max-w-md mx-auto text-sm text-slate-600 space-y-1" >
                             <p><strong>Customer: </strong> {form.customer_name}</p >
                                 <p><strong>Email: </strong> {form.customer_email}</p >

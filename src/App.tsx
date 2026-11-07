@@ -12,6 +12,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AboutPage from '@/pages/AboutPage';
 import DownloadsPage from '@/pages/DownloadsPage';
 import ReviewsPage from '@/pages/ReviewsPage';
+import KnowledgeBasePage from '@/pages/KnowledgeBasePage';
 
 function Routes() {
     const route = useRouter();
@@ -36,6 +37,9 @@ function Routes() {
     if (path === '/about') return <AboutPage />;
     if (path === '/downloads') return <DownloadsPage />;
     if (path === '/reviews') return <ReviewsPage />;
+    if (path === '/knowledge-base' || path.startsWith('/knowledge-base/')) {
+        return <KnowledgeBasePage articleId={ path.split('/')[2] || null } />;
+    }
     if (path === '/admin') return <AdminDashboard />;
 
     return (
