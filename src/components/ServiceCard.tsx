@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowRight, X } from 'lucide-react';
 import type { Service } from '@/types';
 import { supabase } from '@/lib/supabase';
@@ -16,6 +16,18 @@ export default function ServiceCard({ service }: { service: Service }) {
         comments: ''
     });
 
+    // --- ADDED: Listen for the global action button click ---
+    useEffect(() => {
+        const handleGlobalOpen = () => {
+            setIsOpen(true);
+        };
+
+        window.addEventListener('open-consultation', handleGlobalOpen);
+        return () => {
+            window.removeEventListener('open-consultation', handleGlobalOpen);
+        };
+    }, []);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -26,8 +38,8 @@ export default function ServiceCard({ service }: { service: Service }) {
                 .from('leads')
                 .insert([
                     {
-                        service_id: service.id,
-                        service_name: service.name,
+                        service_id: service?.id || 'general',
+                        service_name: service?.name || 'General Inquiry',
                         company_name: formData.companyName,
                         address: formData.address,
                         full_name: formData.fullName,
@@ -59,16 +71,16 @@ export default function ServiceCard({ service }: { service: Service }) {
         < div className = "group text-left bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl hover:border-blue-200 transition-all duration-300 flex flex-col h-full" >
             <div className="relative aspect-[16/10] overflow-hidden bg-slate-100" >
                 {
-                    service.image_url ? (
+                    service?.image_url ? (
                         <img
-              src= { service.image_url }
-              alt={ service.name }
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-          ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-300" >
-                    <span className="text-4xl" >📐</span>
-                    </div>
+                            src={service.image_url}
+                            alt={service.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-300">
+                            <span className="text-4xl">📐</span>
+                        </div>
                     )
 }
 <span className="absolute top-3 left-3 px-2.5 py-1 bg-slate-900/80 backdrop-blur text-white text-xs font-semibold rounded-full" >
@@ -79,14 +91,14 @@ export default function ServiceCard({ service }: { service: Service }) {
         < div className = "p-5 flex flex-col flex-grow justify-between" >
             <div>
             <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors" >
-            { service.name }
-                </h3>
-                < p className = "text-sm text-slate-500 mt-1 line-clamp-2 leading-relaxed" >
-                { service.description }
-                    </p>
-                    </div>
+            { service?.name || 'General Consultation'}
+</h3>
+    < p className = "text-sm text-slate-500 mt-1 line-clamp-2 leading-relaxed" >
+    { service?.description || 'Schedule an operational strategy assessment with our onsite specialists.'}
+</p>
+    </div>
 
-                    < button
+    < button
 onClick = {() => setIsOpen(true)}
 className = "mt-6 w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors group/btn"
     >
@@ -101,7 +113,7 @@ className = "mt-6 w-full flex items-center justify-center gap-2 px-4 py-3 bg-blu
     isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" >
             <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 relative" >
-                <button 
+                <button
               onClick={ () => setIsOpen(false) }
     className = "absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
         >
@@ -110,19 +122,18 @@ className = "mt-6 w-full flex items-center justify-center gap-2 px-4 py-3 bg-blu
 
             < div className = "mb-6" >
                 <h2 className="text-xl font-bold text-slate-900" > Consultation Request </h2>
-                    < p className = "text-sm text-slate-500 mt-1" > Tell us about your company to continue scheduling for { service.name }.</p>
+                    < p className = "text-sm text-slate-500 mt-1" > Tell us about your company to continue scheduling for { service?.name || 'General Consultation'}.</p>
                         </div>
 
                         < form onSubmit = { handleSubmit } className = "space-y-4" >
-                        <div>
-                        <label className= "block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" > Full Name * </label>
-                            < input
-    required
-    type = "text"
-    className = "w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500"
-    value = { formData.fullName }
-    onChange = { e => setFormData({ ...formData, fullName: e.target.value })
-}
+                            <div>
+                            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" > Full Name * </label>
+                                < input
+required
+type = "text"
+className = "w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500"
+value = { formData.fullName }
+onChange = { e => setFormData({ ...formData, fullName: e.target.value })}
                 />
     </div>
 

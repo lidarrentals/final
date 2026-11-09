@@ -17,10 +17,10 @@ export default function ServicesPage() {
   }, []);
 
   const process = [
-    { step: '01', title: 'Book Online', desc: 'Choose your service and select available dates on the calendar.' },
-    { step: '02', title: 'We Come to You', desc: 'Our certified technicians arrive on-site with all equipment.' },
-    { step: '03', title: 'Scan & Capture', desc: 'High-precision LiDAR and 3D scanning of your site or assets.' },
-    { step: '04', title: 'Receive Deliverables', desc: 'Get point clouds, 3D models, and reports in your format.' },
+    { step: '01', title: 'Book a Free Online Consulation', desc: 'Choose your availablily and book a time directly on the calendar.' },
+      { step: '02', title: 'We Come to You', desc: 'Our certified technicians arrive on-site with all equipment. High-precision 3D LiDAR, surveying equipment and autonomous drones.' },
+      { step: '03', title: 'Scan & Capture', desc: 'We will complete the Statement Of Work within the time - frame or until the job is completed(some exceptions apply)' },
+    { step: '04', title: 'Receive Deliverables', desc: 'Get Fully Georeferenced point clouds, 3D  Solid models, Survey Accuracy reports, custom analytics available all.' },
   ];
 
   return (
@@ -48,9 +48,11 @@ export default function ServicesPage() {
               Onsite 3D Scanning & Post Processing Services
             </h1>
             <p className="mt-5 text-lg text-slate-300 leading-relaxed">
-              Professional LiDAR scanning, building envelope analysis, and precision measurement
-              services delivered on-site by certified technicians. Book by the day or week with
-              real-time availability. Post-Processing, Georferencing, Non-Static Point and noise removal, File conversions, volumetric calculations, and More...
+        Our experienced, field technicians deploy directly to your site to execute specialized data acquisition workflows using state-of-the-art autonomous drones and handheld 3D SLAM scanners. 
+        
+        We navigate hazardous mining and subterranean networks, complex industrial infrastructures and beneath dense tree canopies!
+          
+         
             </p>
             <div className="mt-6 flex flex-wrap gap-4">
               <div className="flex items-center gap-2 text-sm text-slate-300">
@@ -63,7 +65,15 @@ export default function ServicesPage() {
               </div>
               <div className="flex items-center gap-2 text-sm text-slate-300">
                 <Check className="w-4 h-4 text-green-400" />
-                Fast turnaround
+        24 hour emergency services.
+        </div>
+        < div className = "flex items-center gap-2 text-sm text-slate-300" >
+            <Check className="w-4 h-4 text-green-400" />
+              post - processing services.
+            </div>
+        < div className = "flex items-center gap-2 text-sm text-slate-300" >
+            <Check className="w-4 h-4 text-green-400" />
+                Full Liability Insurance and WSIB coverage.
               </div>
             </div>
           </div>
@@ -121,20 +131,21 @@ export default function ServicesPage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-blue-600 rounded-3xl p-8 md:p-12 text-center">
           <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
-            Ready to book your scanning service?
+            Ready to book your scanning service? Click below to book a meeting.
           </h2>
           <p className="text-blue-100 mb-6 max-w-xl mx-auto">
-            Check availability and reserve your dates instantly. Our team will confirm within 24 hours.
+            For emergency services, please use livechat or call (416)220-2456 and we will respond within 4 hours.
           </p>
-          <button
-            onClick={() => {
-              const el = document.querySelector('[data-services-grid]');
-              el?.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className="px-6 py-3.5 bg-white text-blue-600 rounded-xl font-semibold hover:bg-blue-50 transition-colors"
-          >
-            View Services & Book
-          </button>
+    < button
+onClick = {() => {
+    window.dispatchEvent(new CustomEvent('open-consultation'));
+}}
+className = "px-6 py-3.5 bg-white text-blue-600 rounded-xl font-semibold hover:bg-blue-50 transition-colors"
+    >
+    View Services & Book
+        </button>
+
+
         </div>
       </section>
     </div>
