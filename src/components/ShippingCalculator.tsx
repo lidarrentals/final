@@ -57,21 +57,21 @@ export default function ShippingCalculator({ onRateSelect }: ShippingCalculatorP
           provider: 'FedEx',
           service: 'Ground Insured Freight (2-3 Business Days)',
           amount: '145.00',
-          currency: 'CAD',
+          currency: 'USD',
         },
         {
           id: 'rate_priority',
           provider: 'FedEx',
           service: 'Priority Overnight Hazardous/Lithium Insured',
           amount: '285.00',
-          currency: 'CAD',
+          currency: 'USD',
         },
         {
           id: 'rate_whiteglove',
           provider: 'Direct Carrier',
           service: 'Direct Hand-Delivery & Onsite Calibration Tech (within 200km)',
           amount: '450.00',
-          currency: 'CAD',
+          currency: 'USD',
         },
       ];
       setRates(fallbackRates);

@@ -35,7 +35,7 @@ export default function AccessoryModal({ isOpen, onClose, primaryItem, onConfirm
       .from('equipment')
       .select('*')
       .eq('is_accessory', true)
-      .or(`parent_id.eq.${targetParentId},parentId.eq.${targetParentId}`)
+      .eq('parent_id', targetParentId)
       .eq('is_active', true);
     
     if (error) {

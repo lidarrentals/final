@@ -218,7 +218,7 @@ className = "w-full py-3.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl
           isOpen={ isModalOpen }
     onClose = {() => setIsModalOpen(false)
 }
-equipment = { equipment }
+primaryItem = { equipment }
 onConfirm = { handleFinishBundleAddToCart }
     />
       )}
