@@ -5,10 +5,21 @@ import { Calendar, ShoppingCart, ArrowLeft, Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/pricing';
 import { navigate } from '@/lib/router';
 import type { Equipment } from '@/types';
-import AccessoryModal from '@/components/AccessoryModal';
 
 export default function EquipmentDetailPage({ id }: { id?: string } = {}) {
     const { addToCart, setIsOpen } = useCart();
+
+    // Add the item to the cart and go straight to checkout (shipping, then payment)
+    const handleReserve = () => {
+        if (!equipment) return;
+        if (!startDate || !endDate) {
+            alert('Please select your rental start and end dates first.');
+            return;
+        }
+        addToCart(equipment, rentalDays, startDate, endDate, quantity);
+        setIsOpen(false);
+        navigate('/checkout');
+    };
 
     const [equipment, setEquipment] = useState<Equipment | null>(null);
     const [loading, setLoading] = useState(true);
@@ -17,7 +28,6 @@ export default function EquipmentDetailPage({ id }: { id?: string } = {}) {
     const [quantity, setQuantity] = useState(1);
     const [rentalDays, setRentalDays] = useState(1);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Extract the URL id parameter directly using native location methods
     const getNativeProductId = () => {
@@ -77,19 +87,6 @@ export default function EquipmentDetailPage({ id }: { id?: string } = {}) {
             console.error(err);
         }
         setLoading(false);
-    };
-
-    const handleFinishBundleAddToCart = (selectedAccessories: Equipment[]) => {
-        if (!equipment) return;
-
-        addToCart(equipment, rentalDays, startDate, endDate, quantity);
-
-        selectedAccessories.forEach(acc => {
-            addToCart(acc, rentalDays, startDate, endDate, 1);
-        });
-
-        setIsModalOpen(false);
-        setIsOpen(true);
     };
 
     if (loading) {
@@ -187,18 +184,11 @@ return (
 {
     isLoggedIn ? (
         <button 
-                onClick= {() => {
-        if (!startDate || !endDate) {
-            alert('Please select your preferred rental timeline windows first.');
-            return;
-        }
-        setIsModalOpen(true);
-    }
-}
+                onClick={handleReserve}
 className = "w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-md flex items-center justify-center gap-2 group cursor-pointer text-sm"
     >
     <ShoppingCart size={ 16 } />
-        < span > Reserve Equipment & Select Add - ons </span>
+        <span>Reserve Equipment</span>
             </button>
             ) : (
     <button 
@@ -212,16 +202,6 @@ className = "w-full py-3.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl
     </div>
     </div>
 
-{
-    isModalOpen && equipment && (
-        <AccessoryModal
-          isOpen={ isModalOpen }
-    onClose = {() => setIsModalOpen(false)
-}
-primaryItem = { equipment }
-onConfirm = { handleFinishBundleAddToCart }
-    />
-      )}
 </div>
   );
 }
