@@ -70,18 +70,18 @@ export default function ServiceCard({ service }: { service: Service }) {
         {/* Service Card UI */ }
         < div className = "group text-left bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl hover:border-blue-200 transition-all duration-300 flex flex-col h-full" >
             <div className="relative aspect-[16/10] overflow-hidden bg-slate-100" >
-            {
-                service?.image_url?(
-            <img
-              src = { service.image_url }
-              alt = { service.name }
-              className = "w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                {
+                    service?.image_url ? (
+                        <img
+                            src={service.image_url}
+                            alt={service.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
-          ): (
-                        <div className = "w-full h-full flex items-center justify-center text-slate-300">
-              <span className = "text-4xl">📐</span>
-                </div>
-          )
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-300">
+                            <span className="text-4xl">📐</span>
+                        </div>
+                    )
 }
 <span className="absolute top-3 left-3 px-2.5 py-1 bg-slate-900/80 backdrop-blur text-white text-xs font-semibold rounded-full" >
     Onsite Service
