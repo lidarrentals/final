@@ -58,7 +58,7 @@ export default function AccountPage() {
         setUser(data.user);
         setLoading(false);
         // Take customers straight to the members-only Knowledge Base after signing in
-        window.location.hash = '/knowledge-base';
+        window.location.hash = '/equipment';
     };
 
     const handleSignUp = async (e: React.FormEvent) => {
