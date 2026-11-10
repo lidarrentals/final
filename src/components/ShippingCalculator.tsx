@@ -3,9 +3,15 @@ import { Truck, MapPin, Loader2 } from 'lucide-react';
 
 interface ShippingCalculatorProps {
   onRateSelect: (amount: number) => void;
+  onAddressChange?: (formattedAddress: string) => void;
 }
 
-export default function ShippingCalculator({ onRateSelect }: ShippingCalculatorProps) {
+function formatAddress(a: { name: string; street1: string; city: string; state: string; zip: string; country: string }) {
+  const cityLine = [a.city, [a.state, a.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  return [a.name, a.street1, cityLine, a.country].filter(Boolean).join(', ');
+}
+
+export default function ShippingCalculator({ onRateSelect, onAddressChange }: ShippingCalculatorProps) {
   const [address, setAddress] = useState({
     name: '',
     street1: '',
@@ -21,7 +27,9 @@ export default function ShippingCalculator({ onRateSelect }: ShippingCalculatorP
   const [selectedRate, setSelectedRate] = useState<any>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setAddress({ ...address, [e.target.name]: e.target.value });
+    const next = { ...address, [e.target.name]: e.target.value };
+    setAddress(next);
+    onAddressChange?.(formatAddress(next));
   };
 
   const handleCalculateShipping = async () => {

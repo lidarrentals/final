@@ -16,7 +16,7 @@ export default function CheckoutPage() {
         customer_email: 'john@example.com',
         customer_phone: '(555) 123-4567',
         company: 'LiDAR Testing Co',
-        shipping_address: '123 Test Site Lane, Austin TX',
+        shipping_address: '',
         notes: '',
     });
 
@@ -97,14 +97,12 @@ return (
                                                                 </div>
                                                                 </div>
 
-                                                                < div className = "bg-white rounded-2xl border border-slate-200 p-6" >
-                                                                    <h2 className="text-lg font-bold text-slate-900 mb-4" > Delivery / Site Address </h2>
-                                                                        < textarea rows = { 3} value = { form.shipping_address } onChange = { e => setForm({ ...form, shipping_address: e.target.value })} className = "w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm resize-none" placeholder = "1234 Job Site Rd" />
-                                                                            </div>
-
 {/* Restored Shipping Calculator Panel */ }
 <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden" >
-    <ShippingCalculator onRateSelect={ (amount) => setShippingCost(amount) } />
+    <ShippingCalculator
+        onRateSelect={ (amount) => setShippingCost(amount) }
+        onAddressChange={ (address) => setForm(prev => ({ ...prev, shipping_address: address })) }
+    />
         </div>
         </div>
 
