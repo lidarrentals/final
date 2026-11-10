@@ -11,15 +11,20 @@ function safeDate(v: string | null | undefined) {
     return isNaN(d.getTime()) ? v : formatDate(d);
 }
 
-function PaymentBadge({ status }: { status: OrderSummary['status'] }) {
+function PaymentBadge({ status }: { status: OrderSummary['paymentStatus'] }) {
     if (status === 'paid') {
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-50 text-green-700 text-xs font-semibold"><CheckCircle2 className="w-3.5 h-3.5" /> Paid via Stripe</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-50 text-green-700 text-xs font-semibold"><CheckCircle2 className="w-3.5 h-3.5" /> Paid · verified by Stripe</span>;
     }
-    if (status === 'test') {
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold"><AlertCircle className="w-3.5 h-3.5" /> Test order</span>;
+    if (status === 'review') {
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold"><AlertCircle className="w-3.5 h-3.5" /> Payment under review</span>;
+    }
+    if (status === 'failed') {
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-700 text-xs font-semibold"><AlertCircle className="w-3.5 h-3.5" /> Payment failed</span>;
     }
     return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold"><Clock className="w-3.5 h-3.5" /> Awaiting payment</span>;
 }
+
+const FULFILMENT: Record<string, string> = { pending: 'Pending review', confirmed: 'Confirmed', shipped: 'Shipped', returned: 'Returned' };
 
 function OrderCard({ order }: { order: OrderSummary }) {
     return (
@@ -29,7 +34,10 @@ function OrderCard({ order }: { order: OrderSummary }) {
                     <p className="font-mono font-semibold text-blue-600">{order.reference}</p>
                     <p className="text-xs text-slate-500 mt-0.5">Placed {safeDate(order.createdAt)} · Rental {safeDate(order.rentalStart)} – {safeDate(order.rentalEnd)}</p>
                 </div>
-                <PaymentBadge status={order.status} />
+                <div className="flex flex-col items-end gap-1">
+                    <PaymentBadge status={order.paymentStatus} />
+                    <span className="text-xs text-slate-500">Order status: {FULFILMENT[order.status] || order.status}</span>
+                </div>
             </div>
 
             <ul className="mt-4 divide-y divide-slate-100 text-sm">
@@ -50,11 +58,17 @@ function OrderCard({ order }: { order: OrderSummary }) {
             <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-end justify-between gap-3 text-sm">
                 <div className="text-slate-500 space-y-0.5">
                     {order.shippingAddress && <p><span className="font-medium text-slate-700">Delivery:</span> {order.shippingAddress}</p>}
-                    {order.status === 'paid' && (
+                    {order.paymentStatus === 'paid' && (
                         <p>
                             <span className="font-medium text-slate-700">Payment confirmed:</span> {safeDate(order.paidAt)}
                             {order.stripePaymentIntentId && <span className="font-mono text-xs ml-1">({order.stripePaymentIntentId})</span>}
                         </p>
+                    )}
+                    {order.trackingNumber && <p><span className="font-medium text-slate-700">Tracking:</span> {order.trackingCarrier} {order.trackingNumber}</p>}
+                    {order.invoiceUrl && (
+                        <a href={order.invoiceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 font-medium hover:underline mr-4">
+                            Invoice <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
                     )}
                     {order.stripeReceiptUrl && (
                         <a href={order.stripeReceiptUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 font-medium hover:underline">
@@ -83,7 +97,9 @@ export default function AccountDashboard() {
             .then(res => res && setProfile({ ...emptyProfile, ...res.profile }))
             .finally(() => setProfileLoading(false));
         loadOrders()
-            .then(setOrders)
+            // Show paid orders, plus unpaid checkouts from the last day (hide abandoned ones)
+            .then(rows => setOrders(rows.filter(o => o.paymentStatus === 'paid' || o.paymentStatus === 'review'
+                || (o.paymentStatus === 'unpaid' && Date.now() - new Date(o.createdAt).getTime() < 86_400_000))))
             .catch(() => setOrdersError('Could not load your orders right now.'))
             .finally(() => setOrdersLoading(false));
     }, []);

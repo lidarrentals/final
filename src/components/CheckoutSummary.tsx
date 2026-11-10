@@ -27,9 +27,11 @@ interface SummaryProps {
   };
   // Returns an error message when the form is not ready to pay
   validate?: () => string | null;
+  // Runs just before redirecting to Stripe (e.g. saving the profile)
+  beforeCheckout?: () => Promise<void>;
 }
 
-export default function CheckoutSummary({ items, total, shippingCost, checkoutDetails, validate }: SummaryProps) {
+export default function CheckoutSummary({ items, total, shippingCost, checkoutDetails, validate, beforeCheckout }: SummaryProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const renderSafeDate = (dateVal: any) => {
@@ -54,6 +56,7 @@ export default function CheckoutSummary({ items, total, shippingCost, checkoutDe
     setIsLoading(true);
 
     try {
+      await beforeCheckout?.().catch((err) => console.warn('Could not save profile', err));
       const response = await apiFetch('/api/checkout', {
         method: 'POST',
         body: JSON.stringify({
@@ -97,6 +100,9 @@ export default function CheckoutSummary({ items, total, shippingCost, checkoutDe
 
         {/* Cart items list */}
         <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto mb-4 pr-2">
+          {items.length === 0 && (
+            <p className="py-6 text-center text-sm text-slate-500">Your cart is empty. <a href="#/equipment" className="text-blue-600 font-medium hover:underline">Browse equipment</a></p>
+          )}
           {items.map((item, idx) => (
             <div key={idx} className="py-3 flex justify-between items-start gap-4">
               <div>

@@ -3,7 +3,7 @@ import { ArrowLeft, CheckCircle2, Loader2, UserCircle2, ExternalLink } from 'luc
 import { useCart } from '@/context/CartContext';
 import { navigate } from '@/lib/router';
 import { supabase } from '@/lib/supabase';
-import { apiFetch, formatAddress, loadProfile, type OrderSummary } from '@/lib/api';
+import { apiFetch, formatAddress, loadProfile, mapOrder, saveProfile, type OrderSummary } from '@/lib/api';
 import { formatCurrency } from '@/lib/pricing';
 import ShippingCalculator, { type DeliveryAddress } from '@/components/ShippingCalculator';
 import CheckoutSummary from '@/components/CheckoutSummary';
@@ -44,20 +44,8 @@ export default function CheckoutPage() {
     }));
     const cartTotal = cartItems.reduce((sum, item) => sum + item.lineTotal, 0);
 
-    // Force a test item if the cart is empty so the page loads for testing
-    const items = cartItems.length > 0 ? cartItems : [
-        {
-            id: "prod_test_123",
-            name: "Velodyne Puck VLP-16 (Mock Test Item)",
-            quantity: 1,
-            rentalPeriod: 5,
-            startDate: "2026-10-31",
-            endDate: "2026-11-05",
-            lineTotal: 750.00
-        }
-    ];
-
-    const total = cartItems.length > 0 ? cartTotal : 750.00;
+    const items = cartItems;
+    const total = cartTotal;
 
     // Prefill contact and delivery details from the signed-in customer's saved profile
     useEffect(() => {
@@ -96,12 +84,25 @@ export default function CheckoutPage() {
         window.history.replaceState({}, document.title, window.location.pathname + window.location.hash.split('?')[0]);
 
         if (reference) {
+            // Payment is confirmed by the signature-verified Stripe webhook, which can land a few
+            // seconds after the customer is redirected back, so check a few times.
             setConfirming(true);
-            apiFetch(`/api/orders/confirm?order_id=${encodeURIComponent(reference)}&session_id=${encodeURIComponent(sessionId)}`)
-                .then(res => res.ok ? res.json() : null)
-                .then(data => data?.order && setConfirmedOrder(data.order))
-                .catch(() => { })
-                .finally(() => setConfirming(false));
+            let attempts = 0;
+            const check = async () => {
+                attempts++;
+                try {
+                    const res = await apiFetch(`/api/orders/confirm?order_id=${encodeURIComponent(reference)}&session_id=${encodeURIComponent(sessionId)}`);
+                    const data = res.ok ? await res.json() : null;
+                    if (data?.order) {
+                        const order = mapOrder(data.order);
+                        setConfirmedOrder(order);
+                        if (order.paymentStatus !== 'unpaid') return setConfirming(false);
+                    }
+                } catch { /* retry */ }
+                if (attempts < 10) setTimeout(check, 2000);
+                else setConfirming(false);
+            };
+            check();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -139,9 +140,10 @@ export default function CheckoutPage() {
                         <p><strong>Total:</strong> {formatCurrency(o.total)}</p>
                         <p>
                             <strong>Payment:</strong>{' '}
-                            {o.status === 'paid' ? <span className="text-green-700 font-semibold">Confirmed by Stripe</span>
-                                : o.status === 'test' ? <span className="text-amber-700 font-semibold">Test order (no charge)</span>
-                                    : <span className="text-amber-700 font-semibold">Processing</span>}
+                            {o.paymentStatus === 'paid' ? <span className="text-green-700 font-semibold">Confirmed by Stripe</span>
+                                : o.paymentStatus === 'failed' ? <span className="text-red-700 font-semibold">Payment failed</span>
+                                    : o.paymentStatus === 'review' ? <span className="text-amber-700 font-semibold">Received, under review</span>
+                                        : <span className="text-amber-700 font-semibold">Waiting for Stripe confirmation</span>}
                         </p>
                         {o.stripePaymentIntentId && <p className="font-mono text-xs break-all">Stripe ref: {o.stripePaymentIntentId}</p>}
                         {o.stripeReceiptUrl && (
@@ -241,6 +243,13 @@ export default function CheckoutPage() {
                             address: { street1: address.street1, city: address.city, state: address.state, zip: address.zip, country: address.country },
                             shippingAddress,
                             saveToProfile: signedIn && saveToProfile,
+                        }}
+                        beforeCheckout={async () => {
+                            if (!signedIn || !saveToProfile) return;
+                            await saveProfile({
+                                fullName: form.customer_name, company: form.company, phone: form.customer_phone,
+                                street1: address.street1, city: address.city, state: address.state, zip: address.zip, country: address.country,
+                            });
                         }}
                     />
                 </div>

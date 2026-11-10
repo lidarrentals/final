@@ -1,141 +1,156 @@
-import type { Config } from "@netlify/functions";
+import Stripe from "stripe";
 import { randomBytes } from "node:crypto";
-import { eq } from "drizzle-orm";
-import { db } from "../../db/index.js";
-import { customerProfiles, orders, type OrderItem } from "../../db/schema.js";
-import { getAuthUser, json } from "../lib/auth.js";
-import { getStripe } from "../lib/stripe.js";
+import { getAuthUser, json, supabaseAdmin } from "../lib/supabase-admin.js";
 
 const str = (v: unknown, max = 300) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+const isDate = (v: string) => /^\d{4}-\d{2}-\d{2}/.test(v) && !isNaN(new Date(v).getTime());
 
-function newReference() {
-  return "LR-" + randomBytes(5).toString("hex").toUpperCase().slice(0, 8);
+// Same rule as the equipment page: whole days between the dates, minimum 1
+function rentalDays(start: string, end: string) {
+  const diff = Math.abs(new Date(end).getTime() - new Date(start).getTime());
+  return Math.ceil(diff / 86_400_000) || 1;
 }
 
 export default async (req: Request) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
+  const stripeKey = process.env.STRIPE_SECRET_KEY || "";
+  if (!stripeKey.startsWith("sk_") && !stripeKey.startsWith("rk_")) {
+    return json({ error: "Payments are not configured." }, 500);
+  }
+
   const body = await req.json().catch(() => ({}));
-  const rawItems: any[] = Array.isArray(body.items) ? body.items : [];
+  const rawItems: any[] = Array.isArray(body.items) ? body.items.slice(0, 50) : [];
   if (rawItems.length === 0) return json({ error: "Your cart is empty." }, 400);
 
-  const items: OrderItem[] = rawItems.map((i) => ({
-    id: str(i.id, 100) || undefined,
-    name: str(i.name) || "Rental item",
-    quantity: Math.max(1, Math.floor(Number(i.quantity) || 1)),
-    rentalPeriod: i.rentalPeriod,
-    startDate: str(i.startDate, 40) || undefined,
-    endDate: str(i.endDate, 40) || undefined,
-    lineTotal: Math.max(0, Number(i.lineTotal) || 0),
-  }));
+  const db = supabaseAdmin();
 
-  const shippingCost = Math.max(0, Number(body.shippingCost) || 0);
-  const subtotalCents = items.reduce((s, i) => s + Math.round(i.lineTotal * 100), 0);
-  const shippingCents = Math.round(shippingCost * 100);
+  // Never trust prices from the browser: look every item up in Supabase and price it here
+  const ids = [...new Set(rawItems.map((i) => str(i.id, 64)).filter(Boolean))];
+  const { data: equipment, error: eqError } = await db
+    .from("equipment")
+    .select("id, name, price_1day, is_active")
+    .in("id", ids);
+  if (eqError) {
+    console.error("Equipment lookup failed", eqError);
+    return json({ error: "Could not verify cart items." }, 500);
+  }
+  const byId = new Map((equipment || []).map((e: any) => [e.id, e]));
+
+  const items = [];
+  for (const raw of rawItems) {
+    const eq: any = byId.get(str(raw.id, 64));
+    const startDate = str(raw.startDate, 40);
+    const endDate = str(raw.endDate, 40);
+    if (!eq || !eq.is_active) return json({ error: `"${str(raw.name) || "An item"}" is no longer available.` }, 400);
+    if (!isDate(startDate) || !isDate(endDate)) return json({ error: `Please choose rental dates for ${eq.name}.` }, 400);
+
+    const days = rentalDays(startDate, endDate);
+    const quantity = Math.min(100, Math.max(1, Math.floor(Number(raw.quantity) || 1)));
+    const unitCents = Math.round(Number(eq.price_1day) * days * 100);
+    items.push({ eq, startDate: startDate.slice(0, 10), endDate: endDate.slice(0, 10), days, quantity, unitCents });
+  }
+
+  const shippingCents = Math.min(1_000_000, Math.max(0, Math.round((Number(body.shippingCost) || 0) * 100)));
+  const subtotalCents = items.reduce((s, i) => s + i.unitCents * i.quantity, 0);
+  const totalCents = subtotalCents + shippingCents;
 
   const user = await getAuthUser(req);
   const customer = body.customer || {};
-  const address = body.address || {};
   const customerEmail = str(customer.email) || user?.email || "";
+  if (!customerEmail) return json({ error: "Please enter your email address." }, 400);
 
-  // Rental window covering every item, used to split current vs past orders
-  const starts = items.map((i) => i.startDate).filter(Boolean).sort() as string[];
-  const ends = items.map((i) => i.endDate).filter(Boolean).sort() as string[];
+  const reference = "LR-" + randomBytes(4).toString("hex").toUpperCase();
+  const starts = items.map((i) => i.startDate).sort();
+  const ends = items.map((i) => i.endDate).sort();
 
-  const reference = newReference();
-  const [order] = await db
-    .insert(orders)
-    .values({
+  const { data: order, error: orderError } = await db
+    .from("orders")
+    .insert({
       reference,
-      userId: user?.id ?? null,
-      customerName: str(customer.name),
-      customerEmail,
-      customerPhone: str(customer.phone),
+      user_id: user?.id ?? null,
+      customer_name: str(customer.name) || "Customer",
+      customer_email: customerEmail,
+      customer_phone: str(customer.phone),
       company: str(customer.company),
-      shippingAddress: str(body.shippingAddress, 600),
-      items,
-      subtotalCents,
-      shippingCents,
-      totalCents: subtotalCents + shippingCents,
-      rentalStart: starts[0] ?? null,
-      rentalEnd: ends[ends.length - 1] ?? null,
+      shipping_address: str(body.shippingAddress, 600),
+      subtotal: subtotalCents / 100,
+      shipping_cost: shippingCents / 100,
+      total: totalCents / 100,
+      currency: "usd",
+      rental_start: starts[0],
+      rental_end: ends[ends.length - 1],
+      status: "pending",
+      payment_status: "unpaid",
     })
-    .returning();
-
-  // Keep the customer's profile up to date with what they used at checkout
-  if (user && body.saveToProfile) {
-    const values = {
-      fullName: str(customer.name),
-      company: str(customer.company),
-      phone: str(customer.phone),
-      street1: str(address.street1),
-      city: str(address.city),
-      state: str(address.state),
-      zip: str(address.zip),
-      country: str(address.country) || "CA",
-    };
-    await db
-      .insert(customerProfiles)
-      .values({ userId: user.id, email: user.email, ...values })
-      .onConflictDoUpdate({ target: customerProfiles.userId, set: { ...values, updatedAt: new Date() } })
-      .catch((err) => console.error("Failed to save profile at checkout", err));
+    .select("id")
+    .single();
+  if (orderError || !order) {
+    console.error("Order insert failed", orderError);
+    return json({ error: "Could not create your order." }, 500);
   }
 
-  const origin = new URL(req.url).origin;
-  const successUrl = `${origin}/#/checkout?success=true&order_id=${reference}`;
-
-  const stripe = getStripe();
-  if (!stripe) {
-    // No Stripe key configured: record as a test order so the flow can be exercised
-    await db.update(orders).set({ status: "test", paidAt: new Date() }).where(eq(orders.id, order.id));
-    return json({ url: successUrl, mock: true, reference });
+  const { error: itemsError } = await db.from("order_items").insert(
+    items.map((i) => ({
+      order_id: order.id,
+      item_type: "equipment",
+      item_id: i.eq.id,
+      item_name: i.eq.name,
+      rental_period: `${i.days} day${i.days === 1 ? "" : "s"}`,
+      start_date: i.startDate,
+      end_date: i.endDate,
+      quantity: i.quantity,
+      unit_price: i.unitCents / 100,
+      line_total: (i.unitCents * i.quantity) / 100,
+    }))
+  );
+  if (itemsError) {
+    console.error("Order items insert failed", itemsError);
+    await db.from("orders").delete().eq("id", order.id);
+    return json({ error: "Could not create your order." }, 500);
   }
 
-  const lineItems = items.map((item) => ({
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((i) => ({
     price_data: {
       currency: "usd",
-      product_data: {
-        name: item.name,
-        description: `${item.rentalPeriod || 1} Day Rental (${item.startDate || ""} to ${item.endDate || ""})`,
-      },
-      unit_amount: Math.round((item.lineTotal / item.quantity) * 100),
+      product_data: { name: i.eq.name, description: `${i.days} Day Rental (${i.startDate} to ${i.endDate})` },
+      unit_amount: i.unitCents,
     },
-    quantity: item.quantity,
+    quantity: i.quantity,
   }));
   if (shippingCents > 0) {
     lineItems.push({
       price_data: {
         currency: "usd",
-        product_data: {
-          name: "Round-Trip Courier Delivery Logistics",
-          description: "Includes prepaid return label instructions packet",
-        },
+        product_data: { name: "Round-Trip Courier Delivery Logistics", description: "Includes prepaid return label instructions packet" },
         unit_amount: shippingCents,
       },
       quantity: 1,
     });
   }
 
+  const origin = new URL(req.url).origin;
   try {
+    const stripe = new Stripe(stripeKey);
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
       line_items: lineItems,
-      customer_email: customerEmail || undefined,
+      customer_email: customerEmail,
       client_reference_id: reference,
       metadata: { order_reference: reference },
       payment_intent_data: { metadata: { order_reference: reference } },
-      success_url: `${successUrl}&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${origin}/#/checkout?success=true&order_id=${reference}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/#/checkout?cancel=true`,
     });
 
-    await db.update(orders).set({ stripeSessionId: session.id }).where(eq(orders.id, order.id));
+    await db.from("orders").update({ stripe_session_id: session.id }).eq("id", order.id);
     return json({ url: session.url, reference });
   } catch (err: any) {
     console.error("Stripe session creation failed", err);
-    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, order.id));
-    return json({ error: "Failed to start Stripe checkout.", details: err?.message }, 500);
+    await db.from("orders").update({ payment_status: "failed" }).eq("id", order.id);
+    return json({ error: "Failed to start Stripe checkout." }, 500);
   }
 };
 
-export const config: Config = { path: "/api/checkout" };
+export const config = { path: "/api/checkout" };
