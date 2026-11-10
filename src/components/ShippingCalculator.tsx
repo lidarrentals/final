@@ -1,36 +1,48 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Truck, MapPin, Loader2 } from 'lucide-react';
 
+export interface DeliveryAddress {
+  name: string;
+  street1: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+}
+
 interface ShippingCalculatorProps {
+  address: DeliveryAddress;
+  onAddressChange: (address: DeliveryAddress) => void;
   onRateSelect: (amount: number) => void;
-  onAddressChange?: (formattedAddress: string) => void;
+  // When this value changes and the address is complete, rates are fetched automatically
+  autoCalculateKey?: string | number;
 }
 
-function formatAddress(a: { name: string; street1: string; city: string; state: string; zip: string; country: string }) {
-  const cityLine = [a.city, [a.state, a.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
-  return [a.name, a.street1, cityLine, a.country].filter(Boolean).join(', ');
-}
-
-export default function ShippingCalculator({ onRateSelect, onAddressChange }: ShippingCalculatorProps) {
-  const [address, setAddress] = useState({
-    name: '',
-    street1: '',
-    city: '',
-    state: '',
-    zip: '',
-    country: 'CA'
-  });
-
+export default function ShippingCalculator({ address, onAddressChange, onRateSelect, autoCalculateKey }: ShippingCalculatorProps) {
   const [rates, setRates] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedRate, setSelectedRate] = useState<any>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const next = { ...address, [e.target.name]: e.target.value };
-    setAddress(next);
-    onAddressChange?.(formatAddress(next));
+    onAddressChange({ ...address, [e.target.name]: e.target.value });
+    // Address changed, so any previously selected quote no longer applies
+    if (selectedRate) {
+      setSelectedRate(null);
+      setRates([]);
+      onRateSelect(0);
+    }
   };
+
+  const lastAutoKey = useRef<string | number | undefined>(undefined);
+  useEffect(() => {
+    if (autoCalculateKey === undefined || autoCalculateKey === lastAutoKey.current) return;
+    if (address.street1 && address.city && address.zip) {
+      lastAutoKey.current = autoCalculateKey;
+      handleCalculateShipping();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoCalculateKey]);
 
   const handleCalculateShipping = async () => {
     if (!address.street1 || !address.city || !address.zip) {
