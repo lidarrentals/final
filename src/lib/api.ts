@@ -51,27 +51,22 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
     return fetch(path, { ...init, headers });
 }
 
-// ---- Profiles (Supabase table: customer_profiles, row-level security = own row only) ----
+// ---- Profiles ----
+// Stored on the customer's own Supabase Auth record (user_metadata.profile).
+// Supabase only lets a signed-in user read or update their own record, so no
+// customer can see another customer's profile, and no extra table is needed.
 
 export async function loadProfile(): Promise<{ profile: CustomerProfile; exists: boolean } | null> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) return null;
 
-    const { data, error } = await supabase.from('customer_profiles').select('*').eq('user_id', user.id).maybeSingle();
-    if (error) throw error;
-
-    if (data) {
-        return {
-            exists: true,
-            profile: {
-                email: user.email, fullName: data.full_name, company: data.company, phone: data.phone,
-                street1: data.street1, city: data.city, state: data.state, zip: data.zip, country: data.country || 'CA',
-            },
-        };
+    const m = user.user_metadata || {};
+    const saved = m.profile as Partial<CustomerProfile> | undefined;
+    if (saved) {
+        return { exists: true, profile: { ...emptyProfile, ...saved, email: user.email } };
     }
 
     // No saved profile yet: start from what the customer entered at registration
-    const m = user.user_metadata || {};
     return {
         exists: false,
         profile: { ...emptyProfile, email: user.email, fullName: m.full_name || '', company: m.company_name || '', street1: m.business_address || '' },
@@ -79,14 +74,9 @@ export async function loadProfile(): Promise<{ profile: CustomerProfile; exists:
 }
 
 export async function saveProfile(profile: CustomerProfile): Promise<CustomerProfile> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Please sign in.');
-
     const t = (v: string) => (v || '').trim().slice(0, 300);
-    const { error } = await supabase.from('customer_profiles').upsert({
-        user_id: user.id,
-        email: user.email || '',
-        full_name: t(profile.fullName),
+    const clean: CustomerProfile = {
+        fullName: t(profile.fullName),
         company: t(profile.company),
         phone: t(profile.phone),
         street1: t(profile.street1),
@@ -94,10 +84,12 @@ export async function saveProfile(profile: CustomerProfile): Promise<CustomerPro
         state: t(profile.state),
         zip: t(profile.zip),
         country: t(profile.country) || 'CA',
-        updated_at: new Date().toISOString(),
+    };
+    const { data, error } = await supabase.auth.updateUser({
+        data: { profile: clean, full_name: clean.fullName, company_name: clean.company },
     });
     if (error) throw new Error(error.message);
-    return { ...profile, email: user.email };
+    return { ...clean, email: data.user?.email };
 }
 
 // ---- Orders (Supabase tables: orders + order_items, read-only for customers) ----

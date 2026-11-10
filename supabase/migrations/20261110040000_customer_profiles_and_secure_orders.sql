@@ -1,5 +1,6 @@
 -- =====================================================================
--- Customer profiles, Stripe payment tracking, and locked-down orders
+-- Stripe payment tracking and row-level security (RLS) so customers can
+-- only ever see their own data
 -- Run this once in the Supabase SQL Editor for project iciycfidjapbixrmdugb.
 -- Safe to re-run.
 -- =====================================================================
@@ -27,36 +28,10 @@ as $$ select exists (select 1 from public.admin_users where user_id = auth.uid()
 
 grant execute on function public.is_admin() to anon, authenticated;
 
--- ---------------------------------------------------------------------
--- 2. Customer profiles (one per login)
--- ---------------------------------------------------------------------
-create table if not exists public.customer_profiles (
-  user_id    uuid primary key references auth.users(id) on delete cascade,
-  email      text not null default '',
-  full_name  text not null default '',
-  company    text not null default '',
-  phone      text not null default '',
-  street1    text not null default '',
-  city       text not null default '',
-  state      text not null default '',
-  zip        text not null default '',
-  country    text not null default 'CA',
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-alter table public.customer_profiles enable row level security;
-
-drop policy if exists "profiles_select_own" on public.customer_profiles;
-create policy "profiles_select_own" on public.customer_profiles
-  for select to authenticated using (user_id = auth.uid() or public.is_admin());
-
-drop policy if exists "profiles_insert_own" on public.customer_profiles;
-create policy "profiles_insert_own" on public.customer_profiles
-  for insert to authenticated with check (user_id = auth.uid());
-
-drop policy if exists "profiles_update_own" on public.customer_profiles;
-create policy "profiles_update_own" on public.customer_profiles
-  for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+-- 2. Customer profiles are stored on each user's own auth record
+--    (auth.users.raw_user_meta_data -> profile), which only that user can
+--    read or update. Remove the unused table if an earlier version created it.
+drop table if exists public.customer_profiles;
 
 -- ---------------------------------------------------------------------
 -- 3. Orders: link to customer + Stripe payment confirmation
@@ -132,3 +107,35 @@ revoke insert, update, delete on public.orders      from anon, authenticated;
 revoke insert, update, delete on public.order_items from anon, authenticated;
 grant update (status, tracking_number, tracking_carrier, invoice_url, coi_url) on public.orders to authenticated;
 grant delete on public.orders to authenticated;
+
+-- ---------------------------------------------------------------------
+-- 5. Service consultation requests (leads): visitors can submit the form,
+--    but only admins can read submissions. The Calendly flow is unchanged.
+-- ---------------------------------------------------------------------
+do $$
+declare r record;
+begin
+  if to_regclass('public.leads') is not null then
+    alter table public.leads enable row level security;
+    for r in select policyname from pg_policies where schemaname = 'public' and tablename = 'leads' loop
+      execute format('drop policy %I on public.leads', r.policyname);
+    end loop;
+    create policy "leads_insert_anyone" on public.leads for insert to anon, authenticated with check (true);
+    create policy "leads_select_admin"  on public.leads for select to authenticated using (public.is_admin());
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- 6. Catalog tables: everyone can read, nobody can edit from the browser.
+--    (The old policies let any visitor change prices or delete equipment.
+--    Edit the catalog from the Supabase dashboard, which is unaffected.)
+-- ---------------------------------------------------------------------
+drop policy if exists "anon_insert_equipment"  on public.equipment;
+drop policy if exists "anon_update_equipment"  on public.equipment;
+drop policy if exists "anon_delete_equipment"  on public.equipment;
+drop policy if exists "anon_insert_categories" on public.categories;
+drop policy if exists "anon_update_categories" on public.categories;
+drop policy if exists "anon_delete_categories" on public.categories;
+drop policy if exists "anon_insert_services"   on public.services;
+drop policy if exists "anon_update_services"   on public.services;
+drop policy if exists "anon_delete_services"   on public.services;
