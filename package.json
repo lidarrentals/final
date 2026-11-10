@@ -13,7 +13,6 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
-    "@netlify/functions": "^6.1.1",
     "@supabase/supabase-js": "^2.57.4",
     "cors": "^2.8.6",
     "dotenv": "^18.0.8",

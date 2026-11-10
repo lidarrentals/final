@@ -1,4 +1,8 @@
 -- =====================================================================
+-- BEFORE YOU CLICK RUN: scroll to the bottom and replace
+-- YOUR-LOGIN-EMAIL@example.com with the email you use to log in to
+-- the lidar.rentals website. That makes you the admin.
+-- =====================================================================
 -- Lidar.Rentals: customer profiles, Stripe-verified orders, and lockdown
 -- Run this once in the Supabase SQL Editor for project iciycfidjapbixrmdugb.
 -- Safe to re-run.
@@ -24,9 +28,7 @@ end $$;
 
 -- ---------------------------------------------------------------------
 -- 1. Admin accounts (who can manage all orders on the website's /admin page)
---    Add yourself after running this file:
---    insert into public.admin_users (user_id)
---      select id from auth.users where email = 'you@lidar.rentals';
+--    Your own login is added at the very bottom of this file.
 -- ---------------------------------------------------------------------
 create table if not exists public.admin_users (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -137,3 +139,11 @@ drop policy if exists "anon_delete_categories" on public.categories;
 drop policy if exists "anon_insert_services"   on public.services;
 drop policy if exists "anon_update_services"   on public.services;
 drop policy if exists "anon_delete_services"   on public.services;
+
+-- ---------------------------------------------------------------------
+-- 7. Make yourself an admin.  EDIT THE EMAIL BELOW, THEN CLICK RUN.
+--    (Use the email you log in to the lidar.rentals website with.)
+-- ---------------------------------------------------------------------
+insert into public.admin_users (user_id)
+select id from auth.users where lower(email) = lower('YOUR-LOGIN-EMAIL@example.com')
+on conflict do nothing;
