@@ -2,6 +2,7 @@
 -- Stripe payment tracking and row-level security (RLS) so customers can
 -- only ever see their own data
 -- Run this once in the Supabase SQL Editor for project iciycfidjapbixrmdugb.
+-- Tables: public.profiles, public.orders, public.order_items, public.admin_users
 -- Safe to re-run.
 -- =====================================================================
 
@@ -28,9 +29,45 @@ as $$ select exists (select 1 from public.admin_users where user_id = auth.uid()
 
 grant execute on function public.is_admin() to anon, authenticated;
 
--- 2. Customer profiles are stored on each user's own auth record
---    (auth.users.raw_user_meta_data -> profile), which only that user can
---    read or update. Remove the unused table if an earlier version created it.
+-- 2. Customer profiles: existing table public.profiles (id = auth user id).
+--    Adds the contact / delivery columns used by checkout and the dashboard,
+--    and restricts every row to its owner (admins can read all).
+-- ---------------------------------------------------------------------
+alter table public.profiles
+  add column if not exists email      text not null default '',
+  add column if not exists full_name  text not null default '',
+  add column if not exists company    text not null default '',
+  add column if not exists phone      text not null default '',
+  add column if not exists street1    text not null default '',
+  add column if not exists city       text not null default '',
+  add column if not exists state      text not null default '',
+  add column if not exists zip        text not null default '',
+  add column if not exists country    text not null default 'CA',
+  add column if not exists created_at timestamptz not null default now(),
+  add column if not exists updated_at timestamptz not null default now();
+
+alter table public.profiles enable row level security;
+
+-- Replace whatever policies existed with owner-only access
+do $$
+declare r record;
+begin
+  for r in select policyname from pg_policies where schemaname = 'public' and tablename = 'profiles' loop
+    execute format('drop policy %I on public.profiles', r.policyname);
+  end loop;
+end $$;
+
+create policy "profiles_select_own" on public.profiles
+  for select to authenticated using (id = auth.uid() or public.is_admin());
+create policy "profiles_insert_own" on public.profiles
+  for insert to authenticated with check (id = auth.uid());
+create policy "profiles_update_own" on public.profiles
+  for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
+
+revoke all on public.profiles from anon;
+grant select, insert, update on public.profiles to authenticated;
+
+-- Drop the unused table an earlier version of this file created, if present
 drop table if exists public.customer_profiles;
 
 -- ---------------------------------------------------------------------
