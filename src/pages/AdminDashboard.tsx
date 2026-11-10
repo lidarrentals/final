@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { apiFetch } from '@/lib/api';
 import { Shield, FileText, CheckCircle2, Loader2, Save, Upload } from 'lucide-react';
 import { formatCurrency } from '@/lib/pricing';
 
@@ -16,10 +17,9 @@ export default function AdminDashboard() {
 
   const fetchAllOrders = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('orders')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const res = await apiFetch('/api/admin/orders');
+    const body = await res.json().catch(() => ({}));
+    const data: any[] = res.ok ? body.orders : [];
     
     setOrders(data || []);
     
@@ -68,10 +68,8 @@ export default function AdminDashboard() {
         .from('insurance-certificates')
         .getPublicUrl(filePath);
 
-      await supabase
-        .from('orders')
-        .update({ invoice_url: publicUrl })
-        .eq('id', orderId);
+      const saveRes = await apiFetch('/api/admin/orders', { method: 'PATCH', body: JSON.stringify({ id: orderId, invoice_url: publicUrl }) });
+      if (!saveRes.ok) throw new Error((await saveRes.json().catch(() => ({}))).error || 'Could not link invoice');
 
       handleInputChange(orderId, 'invoice_url', publicUrl);
       alert('Invoice PDF uploaded and linked to customer account successfully!');
@@ -89,17 +87,17 @@ export default function AdminDashboard() {
     const orderData = orders.find(o => o.id === orderId);
 
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({
+      const res = await apiFetch('/api/admin/orders', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          id: orderId,
           tracking_number: formUpdates.tracking_number,
           tracking_carrier: formUpdates.tracking_carrier,
           invoice_url: formUpdates.invoice_url,
           status: formUpdates.status
         })
-        .eq('id', orderId);
-
-      if (error) throw error;
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Could not save order');
 
       if (orderData) {
         // This is perfectly configured with the new underscore file path name mapping link!
@@ -141,7 +139,7 @@ export default function AdminDashboard() {
 
       <div className="space-y-6">
         {orders.length === 0 ? (
-          <p className="text-center text-slate-400 py-10">No orders found. Only accounts listed in the Supabase <code>admin_users</code> table can see orders here, so make sure you are signed in with an admin account.</p>
+          <p className="text-center text-slate-400 py-10">No orders found. Only accounts listed in the Supabase <code>admin_users</code> table can see orders here. Sign in on the website with an admin account.</p>
         ) : (
           orders.map((order) => (
             <div key={order.id} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col xl:flex-row justify-between gap-6">
