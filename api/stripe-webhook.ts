@@ -70,11 +70,15 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           receiptUrl = charge && typeof charge === "object" ? charge.receipt_url : null;
         }
 
+        const stripeCustomerId =
+          typeof session.customer === "string" ? session.customer : session.customer?.id ?? null;
+
         await db
           .from("orders")
           .update({
             payment_status: referenceMatches && amountMatches ? "paid" : "review",
             amount_paid: (session.amount_total ?? 0) / 100,
+            stripe_customer_id: stripeCustomerId,
             stripe_payment_intent_id: paymentIntentId,
             stripe_receipt_url: receiptUrl,
             stripe_event_id: event.id,
