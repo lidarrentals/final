@@ -1,28 +1,32 @@
 import Stripe from "stripe";
-import { json, supabaseAdmin } from "../lib/supabase-admin.js";
+import { header, json, readRawBody, type ApiRequest, type ApiResponse } from "./_lib/http.js";
+import { supabaseAdmin } from "./_lib/supabase-admin.js";
+
+// Stripe signs the exact bytes it sends, so body parsing must be off and the raw body read manually.
+export const config = { api: { bodyParser: false } };
 
 // Stripe calls this after every Checkout transaction. The signature is verified with
 // STRIPE_WEBHOOK_SECRET before anything is written to Supabase, so forged requests are rejected.
-export default async (req: Request) => {
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+export default async function handler(req: ApiRequest, res: ApiResponse) {
+  if (req.method !== "POST") return json(res, { error: "Method not allowed" }, 405);
 
   const secret = process.env.STRIPE_WEBHOOK_SECRET || "";
   const stripeKey = process.env.STRIPE_SECRET_KEY || "";
   if (!secret || !stripeKey) {
     console.error("Stripe webhook is not configured");
-    return json({ error: "Not configured" }, 500);
+    return json(res, { error: "Not configured" }, 500);
   }
 
   const stripe = new Stripe(stripeKey);
-  const signature = req.headers.get("stripe-signature") || "";
-  const payload = await req.text(); // raw body is required for signature verification
+  const signature = header(req, "stripe-signature");
+  const payload = await readRawBody(req); // raw body is required for signature verification
 
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(payload, signature, secret);
   } catch (err: any) {
     console.warn("Rejected Stripe webhook with invalid signature:", err?.message);
-    return json({ error: "Invalid signature" }, 400);
+    return json(res, { error: "Invalid signature" }, 400);
   }
 
   const db = supabaseAdmin();
@@ -96,10 +100,8 @@ export default async (req: Request) => {
     }
   } catch (err) {
     console.error(`Failed to process Stripe event ${event.id}`, err);
-    return json({ error: "Processing failed" }, 500); // Stripe will retry
+    return json(res, { error: "Processing failed" }, 500); // Stripe will retry
   }
 
-  return json({ received: true });
-};
-
-export const config = { path: "/api/stripe-webhook" };
+  return json(res, { received: true });
+}
