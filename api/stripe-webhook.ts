@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { header, json, readRawBody, type ApiRequest, type ApiResponse } from "./_lib/http.js";
 import { supabaseAdmin } from "./_lib/supabase-admin.js";
+import { createRentalCalendarEvent } from "./_lib/google-calendar.js";
 
 // Stripe signs the exact bytes it sends, so body parsing must be off and the raw body read manually.
 export const config = { api: { bodyParser: false } };
@@ -35,7 +36,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const findOrder = async () => {
     const { data } = await db
       .from("orders")
-      .select("id, reference, total, payment_status")
+      .select(
+        "id, reference, total, payment_status, customer_name, customer_email, customer_phone, company, shipping_address, rental_start, rental_end, google_event_id, order_items(item_name, quantity, start_date, end_date)"
+      )
       .eq("stripe_session_id", session.id)
       .maybeSingle();
     return data;
@@ -73,6 +76,22 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         const stripeCustomerId =
           typeof session.customer === "string" ? session.customer : session.customer?.id ?? null;
 
+        // Create Google Calendar event (with 1-day shipping buffer before & after)
+        let googleEventId = order.google_event_id || null;
+        if (!googleEventId && order.rental_start && order.rental_end) {
+          googleEventId = await createRentalCalendarEvent({
+            reference: order.reference,
+            customer_name: order.customer_name || "Customer",
+            customer_email: order.customer_email || "",
+            customer_phone: order.customer_phone,
+            company: order.company,
+            shipping_address: order.shipping_address,
+            rental_start: order.rental_start,
+            rental_end: order.rental_end,
+            items: Array.isArray(order.order_items) ? order.order_items : [],
+          });
+        }
+
         await db
           .from("orders")
           .update({
@@ -82,6 +101,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
             stripe_payment_intent_id: paymentIntentId,
             stripe_receipt_url: receiptUrl,
             stripe_event_id: event.id,
+            google_event_id: googleEventId,
             paid_at: new Date().toISOString(),
           })
           .eq("id", order.id);
