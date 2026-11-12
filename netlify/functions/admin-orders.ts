@@ -1,4 +1,5 @@
 import { getAuthUser, json, supabaseAdmin } from "../lib/supabase-admin.js";
+import { sendOrderStatusEmail } from "../lib/order-email.js";
 
 // Admin-only order management. Admin rights come from the admin_users table,
 // checked on the server for every request.
@@ -32,10 +33,23 @@ export default async (req: Request) => {
     }
     if (typeof b.status === "string" && STATUSES.has(b.status)) update.status = b.status;
 
-    const { data, error } = await db.from("orders").update(update).eq("id", id).select("id, customer_email, customer_name").maybeSingle();
+    const { data, error } = await db.from("orders").update(update).eq("id", id).select("id, reference, customer_email, customer_name, status, tracking_number, tracking_carrier").maybeSingle();
     if (error) return json({ error: error.message }, 500);
     if (!data) return json({ error: "Order not found" }, 404);
-    return json({ order: data });
+
+    let emailed = false;
+    if (b.notify === true) {
+      emailed = await sendOrderStatusEmail({
+        to: data.customer_email,
+        name: data.customer_name,
+        reference: data.reference || String(data.id).slice(0, 8).toUpperCase(),
+        status: data.status,
+        trackingNumber: data.tracking_number,
+        trackingCarrier: data.tracking_carrier,
+        origin: new URL(req.url).origin,
+      });
+    }
+    return json({ order: { id: data.id }, emailed });
   }
 
   return json({ error: "Method not allowed" }, 405);

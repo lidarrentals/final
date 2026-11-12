@@ -84,7 +84,6 @@ export default function AdminDashboard() {
   const handleUpdateOrder = async (orderId: string) => {
     setSavingId(orderId);
     const formUpdates = editForms[orderId];
-    const orderData = orders.find(o => o.id === orderId);
 
     try {
       const res = await apiFetch('/api/admin/orders', {
@@ -94,28 +93,14 @@ export default function AdminDashboard() {
           tracking_number: formUpdates.tracking_number,
           tracking_carrier: formUpdates.tracking_carrier,
           invoice_url: formUpdates.invoice_url,
-          status: formUpdates.status
+          status: formUpdates.status,
+          notify: true
         })
       });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Could not save order');
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || 'Could not save order');
 
-      if (orderData) {
-        // This is perfectly configured with the new underscore file path name mapping link!
-        fetch('/.netlify/functions/send_order_email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customerEmail: orderData.customer_email,
-            customerName: orderData.customer_name,
-            orderId: orderId,
-            status: formUpdates.status,
-            trackingNumber: formUpdates.tracking_number,
-            trackingCarrier: formUpdates.tracking_carrier
-          })
-        }).catch(err => console.error("Email log trace error:", err));
-      }
-
-      alert('Order status saved! Notification email dispatched seamlessly.');
+      alert(result.emailed ? 'Order saved and the customer was emailed.' : 'Order saved. (No email was sent; check that RESEND_API_KEY is set.)');
       fetchAllOrders();
     } catch (err: any) {
       alert('Failed to save administration metadata: ' + err.message);
