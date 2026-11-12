@@ -77,7 +77,8 @@ setLoading(false);
 const fetchAvailability = async (productId: string) => {
 setAvailabilityLoading(true);
 try {
-const res = await fetch(/api/availability?equipmentId=${encodeURIComponent(productId)});
+const url = '/api/availability?equipmentId=' + encodeURIComponent(productId);
+const res = await fetch(url);
 if (res.ok) {
 const json = await res.json();
 setUnavailableDates(Array.isArray(json.unavailableDates) ? json.unavailableDates : []);
@@ -109,15 +110,16 @@ const upcomingBlockedRanges = useMemo(() => {
 const future = unavailableDates.filter((d) => d >= today);
 if (future.length === 0) return [];
 const ranges: { start: string; end: string }[] = [];
-let rangeStart = future[0];
-let prev = future[0];
+let rangeStart = future.at(0) || '';
+let prev = future.at(0) || '';
 for (let i = 1; i < future.length; i++) {
-if (future[i] === addDays(prev, 1)) {
-prev = future[i];
+const current = future.at(i) || '';
+if (current === addDays(prev, 1)) {
+prev = current;
 } else {
 ranges.push({ start: rangeStart, end: prev });
-rangeStart = future[i];
-prev = future[i];
+rangeStart = current;
+prev = current;
 }
 }
 ranges.push({ start: rangeStart, end: prev });
