@@ -137,11 +137,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
+      customer_creation: "always",
+      invoice_creation: { enabled: false },
       line_items: lineItems,
       customer_email: customerEmail,
       client_reference_id: reference,
       metadata: { order_reference: reference },
-      payment_intent_data: { metadata: { order_reference: reference } },
+      payment_intent_data: {
+        receipt_email: customerEmail,
+        metadata: { order_reference: reference },
+      },
       success_url: `${origin}/#/checkout?success=true&order_id=${reference}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/#/checkout?cancel=true`,
     });
