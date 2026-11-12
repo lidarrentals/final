@@ -125,7 +125,7 @@ async function startServer() {
     };
 
     app.post('/api/shipping-rates', handleShippingRates);
-    app.post('/.netlify/functions/get-live-rates', handleShippingRates);
+    app.post('/api/get-live-rates', handleShippingRates);
 
     if (!isProd) {
         const vite = await createViteServer({

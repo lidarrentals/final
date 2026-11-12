@@ -55,7 +55,7 @@ export default function ShippingCalculator({ address, onAddressChange, onRateSel
     setRates([]);
 
     try {
-      const response = await fetch('/.netlify/functions/get-live-rates', {
+      const response = await fetch('/api/get-live-rates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ customerAddress: address })

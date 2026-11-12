@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { randomBytes } from "node:crypto";
-import { getAuthUser, json, supabaseAdmin } from "../lib/supabase-admin.js";
+import { json, readJson, requestOrigin, type ApiRequest, type ApiResponse } from "./_lib/http.js";
+import { getAuthUser, supabaseAdmin } from "./_lib/supabase-admin.js";
 
 const str = (v: unknown, max = 300) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const isDate = (v: string) => /^\d{4}-\d{2}-\d{2}/.test(v) && !isNaN(new Date(v).getTime());
@@ -11,17 +12,18 @@ function rentalDays(start: string, end: string) {
   return Math.ceil(diff / 86_400_000) || 1;
 }
 
-export default async (req: Request) => {
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+// POST /api/checkout — prices the cart server-side, records the order and starts Stripe Checkout.
+export default async function handler(req: ApiRequest, res: ApiResponse) {
+  if (req.method !== "POST") return json(res, { error: "Method not allowed" }, 405);
 
   const stripeKey = process.env.STRIPE_SECRET_KEY || "";
   if (!stripeKey.startsWith("sk_") && !stripeKey.startsWith("rk_")) {
-    return json({ error: "Payments are not configured." }, 500);
+    return json(res, { error: "Payments are not configured." }, 500);
   }
 
-  const body = await req.json().catch(() => ({}));
+  const body = readJson(req);
   const rawItems: any[] = Array.isArray(body.items) ? body.items.slice(0, 50) : [];
-  if (rawItems.length === 0) return json({ error: "Your cart is empty." }, 400);
+  if (rawItems.length === 0) return json(res, { error: "Your cart is empty." }, 400);
 
   const db = supabaseAdmin();
 
@@ -33,7 +35,7 @@ export default async (req: Request) => {
     .in("id", ids);
   if (eqError) {
     console.error("Equipment lookup failed", eqError);
-    return json({ error: "Could not verify cart items." }, 500);
+    return json(res, { error: "Could not verify cart items." }, 500);
   }
   const byId = new Map((equipment || []).map((e: any) => [e.id, e]));
 
@@ -42,8 +44,8 @@ export default async (req: Request) => {
     const eq: any = byId.get(str(raw.id, 64));
     const startDate = str(raw.startDate, 40);
     const endDate = str(raw.endDate, 40);
-    if (!eq || !eq.is_active) return json({ error: `"${str(raw.name) || "An item"}" is no longer available.` }, 400);
-    if (!isDate(startDate) || !isDate(endDate)) return json({ error: `Please choose rental dates for ${eq.name}.` }, 400);
+    if (!eq || !eq.is_active) return json(res, { error: `"${str(raw.name) || "An item"}" is no longer available.` }, 400);
+    if (!isDate(startDate) || !isDate(endDate)) return json(res, { error: `Please choose rental dates for ${eq.name}.` }, 400);
 
     const days = rentalDays(startDate, endDate);
     const quantity = Math.min(100, Math.max(1, Math.floor(Number(raw.quantity) || 1)));
@@ -58,7 +60,7 @@ export default async (req: Request) => {
   const user = await getAuthUser(req);
   const customer = body.customer || {};
   const customerEmail = str(customer.email) || user?.email || "";
-  if (!customerEmail) return json({ error: "Please enter your email address." }, 400);
+  if (!customerEmail) return json(res, { error: "Please enter your email address." }, 400);
 
   const reference = "LR-" + randomBytes(4).toString("hex").toUpperCase();
   const starts = items.map((i) => i.startDate).sort();
@@ -87,7 +89,7 @@ export default async (req: Request) => {
     .single();
   if (orderError || !order) {
     console.error("Order insert failed", orderError);
-    return json({ error: "Could not create your order." }, 500);
+    return json(res, { error: "Could not create your order." }, 500);
   }
 
   const { error: itemsError } = await db.from("order_items").insert(
@@ -107,7 +109,7 @@ export default async (req: Request) => {
   if (itemsError) {
     console.error("Order items insert failed", itemsError);
     await db.from("orders").delete().eq("id", order.id);
-    return json({ error: "Could not create your order." }, 500);
+    return json(res, { error: "Could not create your order." }, 500);
   }
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((i) => ({
@@ -129,7 +131,7 @@ export default async (req: Request) => {
     });
   }
 
-  const origin = new URL(req.url).origin;
+  const origin = requestOrigin(req);
   try {
     const stripe = new Stripe(stripeKey);
     const session = await stripe.checkout.sessions.create({
@@ -145,12 +147,10 @@ export default async (req: Request) => {
     });
 
     await db.from("orders").update({ stripe_session_id: session.id }).eq("id", order.id);
-    return json({ url: session.url, reference });
+    return json(res, { url: session.url, reference });
   } catch (err: any) {
     console.error("Stripe session creation failed", err);
     await db.from("orders").update({ payment_status: "failed" }).eq("id", order.id);
-    return json({ error: "Failed to start Stripe checkout." }, 500);
+    return json(res, { error: "Failed to start Stripe checkout." }, 500);
   }
-};
-
-export const config = { path: "/api/checkout" };
+}

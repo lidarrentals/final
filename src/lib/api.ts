@@ -42,7 +42,7 @@ export const emptyProfile: CustomerProfile = {
     fullName: '', company: '', phone: '', street1: '', city: '', state: '', zip: '', country: 'CA',
 };
 
-// fetch() wrapper that attaches the signed-in customer's session token (for Netlify Functions)
+// fetch() wrapper that attaches the signed-in customer's session token (for the /api serverless functions)
 export async function apiFetch(path: string, init: RequestInit = {}) {
     const { data } = await supabase.auth.getSession();
     const headers = new Headers(init.headers);
