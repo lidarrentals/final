@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatCurrency, formatDate } from '@/lib/pricing';
+import { apiFetch } from '@/lib/api';
 
 export interface RentalItem {
   id?: string;
@@ -17,9 +18,20 @@ interface SummaryProps {
   items: RentalItem[] | any[];
   total: number;
   shippingCost: number;
+  // Contact + delivery details recorded on the order
+  checkoutDetails?: {
+    customer: { name: string; email: string; phone: string; company: string };
+    address: { street1: string; city: string; state: string; zip: string; country: string };
+    shippingAddress: string;
+    saveToProfile: boolean;
+  };
+  // Returns an error message when the form is not ready to pay
+  validate?: () => string | null;
+  // Runs just before redirecting to Stripe (e.g. saving the profile)
+  beforeCheckout?: () => Promise<void>;
 }
 
-export default function CheckoutSummary({ items, total, shippingCost }: SummaryProps) {
+export default function CheckoutSummary({ items, total, shippingCost, checkoutDetails, validate, beforeCheckout }: SummaryProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const renderSafeDate = (dateVal: any) => {
@@ -36,12 +48,17 @@ export default function CheckoutSummary({ items, total, shippingCost }: SummaryP
   // Securely hand off cart data to the Stripe checkout backend endpoint
   const handleCheckout = async () => {
     if (items.length === 0) return;
+    const problem = validate?.();
+    if (problem) {
+      alert(problem);
+      return;
+    }
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/checkout', {
+      await beforeCheckout?.().catch((err) => console.warn('Could not save profile', err));
+      const response = await apiFetch('/api/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items: items.map((item) => ({
             id: item.id || item.itemId,
@@ -54,6 +71,7 @@ export default function CheckoutSummary({ items, total, shippingCost }: SummaryP
             lineTotal: item.lineTotal,
           })),
           shippingCost,
+          ...checkoutDetails,
         }),
       });
 
@@ -82,6 +100,9 @@ export default function CheckoutSummary({ items, total, shippingCost }: SummaryP
 
         {/* Cart items list */}
         <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto mb-4 pr-2">
+          {items.length === 0 && (
+            <p className="py-6 text-center text-sm text-slate-500">Your cart is empty. <a href="#/equipment" className="text-blue-600 font-medium hover:underline">Browse equipment</a></p>
+          )}
           {items.map((item, idx) => (
             <div key={idx} className="py-3 flex justify-between items-start gap-4">
               <div>

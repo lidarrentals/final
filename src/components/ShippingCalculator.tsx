@@ -1,28 +1,48 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Truck, MapPin, Loader2 } from 'lucide-react';
 
-interface ShippingCalculatorProps {
-  onRateSelect: (amount: number) => void;
+export interface DeliveryAddress {
+  name: string;
+  street1: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
 }
 
-export default function ShippingCalculator({ onRateSelect }: ShippingCalculatorProps) {
-  const [address, setAddress] = useState({
-    name: '',
-    street1: '',
-    city: '',
-    state: '',
-    zip: '',
-    country: 'CA'
-  });
+interface ShippingCalculatorProps {
+  address: DeliveryAddress;
+  onAddressChange: (address: DeliveryAddress) => void;
+  onRateSelect: (amount: number) => void;
+  // When this value changes and the address is complete, rates are fetched automatically
+  autoCalculateKey?: string | number;
+}
 
+export default function ShippingCalculator({ address, onAddressChange, onRateSelect, autoCalculateKey }: ShippingCalculatorProps) {
   const [rates, setRates] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedRate, setSelectedRate] = useState<any>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setAddress({ ...address, [e.target.name]: e.target.value });
+    onAddressChange({ ...address, [e.target.name]: e.target.value });
+    // Address changed, so any previously selected quote no longer applies
+    if (selectedRate) {
+      setSelectedRate(null);
+      setRates([]);
+      onRateSelect(0);
+    }
   };
+
+  const lastAutoKey = useRef<string | number | undefined>(undefined);
+  useEffect(() => {
+    if (autoCalculateKey === undefined || autoCalculateKey === lastAutoKey.current) return;
+    if (address.street1 && address.city && address.zip) {
+      lastAutoKey.current = autoCalculateKey;
+      handleCalculateShipping();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoCalculateKey]);
 
   const handleCalculateShipping = async () => {
     if (!address.street1 || !address.city || !address.zip) {

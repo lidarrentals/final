@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { apiFetch } from '@/lib/api';
 import { Shield, FileText, CheckCircle2, Loader2, Save, Upload } from 'lucide-react';
 import { formatCurrency } from '@/lib/pricing';
 
@@ -16,10 +17,9 @@ export default function AdminDashboard() {
 
   const fetchAllOrders = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('orders')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const res = await apiFetch('/api/admin/orders');
+    const body = await res.json().catch(() => ({}));
+    const data: any[] = res.ok ? body.orders : [];
     
     setOrders(data || []);
     
@@ -45,7 +45,7 @@ export default function AdminDashboard() {
 
   const handleInvoiceUpload = async (e: React.ChangeEvent<HTMLInputElement>, orderId: string) => {
     if (!e.target.files || e.target.files.length === 0) return;
-    const file = e.target.files;
+    const file = e.target.files[0];
 
     if (file.type !== 'application/pdf') {
       alert('File block: You can only upload invoices in .pdf format!');
@@ -68,10 +68,8 @@ export default function AdminDashboard() {
         .from('insurance-certificates')
         .getPublicUrl(filePath);
 
-      await supabase
-        .from('orders')
-        .update({ invoice_url: publicUrl })
-        .eq('id', orderId);
+      const saveRes = await apiFetch('/api/admin/orders', { method: 'PATCH', body: JSON.stringify({ id: orderId, invoice_url: publicUrl }) });
+      if (!saveRes.ok) throw new Error((await saveRes.json().catch(() => ({}))).error || 'Could not link invoice');
 
       handleInputChange(orderId, 'invoice_url', publicUrl);
       alert('Invoice PDF uploaded and linked to customer account successfully!');
@@ -86,38 +84,23 @@ export default function AdminDashboard() {
   const handleUpdateOrder = async (orderId: string) => {
     setSavingId(orderId);
     const formUpdates = editForms[orderId];
-    const orderData = orders.find(o => o.id === orderId);
 
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({
+      const res = await apiFetch('/api/admin/orders', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          id: orderId,
           tracking_number: formUpdates.tracking_number,
           tracking_carrier: formUpdates.tracking_carrier,
           invoice_url: formUpdates.invoice_url,
-          status: formUpdates.status
+          status: formUpdates.status,
+          notify: true
         })
-        .eq('id', orderId);
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || 'Could not save order');
 
-      if (error) throw error;
-
-      if (orderData) {
-        // This is perfectly configured with the new underscore file path name mapping link!
-        fetch('/.netlify/functions/send_order_email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customerEmail: orderData.customer_email,
-            customerName: orderData.customer_name,
-            orderId: orderId,
-            status: formUpdates.status,
-            trackingNumber: formUpdates.tracking_number,
-            trackingCarrier: formUpdates.tracking_carrier
-          })
-        }).catch(err => console.error("Email log trace error:", err));
-      }
-
-      alert('Order status saved! Notification email dispatched seamlessly.');
+      alert(result.emailed ? 'Order saved and the customer was emailed.' : 'Order saved. (No email was sent; check that RESEND_API_KEY is set.)');
       fetchAllOrders();
     } catch (err: any) {
       alert('Failed to save administration metadata: ' + err.message);
@@ -141,18 +124,23 @@ export default function AdminDashboard() {
 
       <div className="space-y-6">
         {orders.length === 0 ? (
-          <p className="text-center text-slate-400 py-10">No customer orders captured inside the database rows grid.</p>
+          <p className="text-center text-slate-400 py-10">No orders found. Only accounts listed in the Supabase <code>admin_users</code> table can see orders here. Sign in on the website with an admin account.</p>
         ) : (
           orders.map((order) => (
             <div key={order.id} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col xl:flex-row justify-between gap-6">
               <div className="space-y-2 flex-1 min-w-[280px]">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded">ID: {order.id.slice(0, 8)}</span>
+                  <span className="text-xs font-mono font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{order.reference || `ID: ${order.id.slice(0, 8)}`}</span>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded ${order.payment_status === 'paid' ? 'bg-green-50 text-green-700' : order.payment_status === 'review' || order.payment_status === 'failed' ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-500'}`}>
+                    {order.payment_status === 'paid' ? 'Paid (Stripe verified)' : order.payment_status === 'review' ? 'Payment mismatch: review' : order.payment_status || 'unpaid'}
+                  </span>
                   <span className="text-xs text-slate-400">{new Date(order.created_at).toLocaleDateString()}</span>
                 </div>
                 <h3 className="text-base font-bold text-slate-900">{order.customer_name}</h3>
                 <p className="text-sm text-slate-500 font-medium">{order.customer_email} • {order.customer_phone || 'No Phone'}</p>
                 <div className="text-lg font-black text-blue-600 pt-1">{formatCurrency(order.total)}</div>
+                {order.shipping_address && <p className="text-xs text-slate-500">Delivery: {order.shipping_address}</p>}
+                {order.stripe_payment_intent_id && <p className="text-xs font-mono text-slate-400">Stripe: {order.stripe_payment_intent_id}</p>}
                 
                 {order.coi_url && (
                   <a href={order.coi_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-green-700 bg-green-50 px-2.5 py-1 rounded-md font-semibold border border-green-100 hover:underline">
